@@ -20,6 +20,11 @@ import {
   Users,
   X,
 } from "lucide-react";
+import {
+  trackEvent,
+  trackPageView,
+  trackSectionViews,
+} from "./analytics";
 import "./App.css";
 
 const navItems = [
@@ -422,12 +427,38 @@ function App() {
   }, [currentPath]);
 
   useEffect(() => {
+    trackPageView();
+    trackSectionViews();
+  }, [currentPath]);
+
+  // One event per opened photograph, whichever way it was opened — thumbnail,
+  // arrow button or keyboard.
+  useEffect(() => {
+    if (activeImage === null) return;
+    trackEvent("gallery_image_view", {
+      image_title: gallery[activeImage].title,
+      image_index: activeImage + 1,
+      image_src: gallery[activeImage].src,
+    });
+  }, [activeImage]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setActiveImage(null);
-      if (activeImage !== null && event.key === "ArrowRight")
+      if (activeImage !== null && event.key === "ArrowRight") {
+        trackEvent("gallery_navigate", {
+          method: "keyboard",
+          direction: "next",
+        });
         setActiveImage((activeImage + 1) % gallery.length);
-      if (activeImage !== null && event.key === "ArrowLeft")
+      }
+      if (activeImage !== null && event.key === "ArrowLeft") {
+        trackEvent("gallery_navigate", {
+          method: "keyboard",
+          direction: "previous",
+        });
         setActiveImage((activeImage - 1 + gallery.length) % gallery.length);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -507,6 +538,12 @@ function App() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const name = String(data.get("name") || "");
+    trackEvent("form_submit", {
+      form_name: "join-form",
+      has_phone: Boolean(data.get("phone")),
+      has_email: Boolean(data.get("email")),
+      message_length: String(data.get("message") || "").length,
+    });
     const body = `Name: ${name}\nPhone: ${data.get("phone")}\nEmail: ${data.get("email")}\n\n${data.get("message")}`;
     window.location.href = `mailto:pbandhavi@yahoo.com?subject=${encodeURIComponent(`Website enquiry from ${name}`)}&body=${encodeURIComponent(body)}`;
   };
@@ -629,10 +666,20 @@ function App() {
             onKeyDown={(event) => {
               if (event.key === "ArrowRight") {
                 event.preventDefault();
+                trackEvent("carousel_navigate", {
+                  carousel: "home",
+                  method: "keyboard",
+                  direction: "next",
+                });
                 setHomeSlide((homeSlide + 1) % homeCarousel.length);
               }
               if (event.key === "ArrowLeft") {
                 event.preventDefault();
+                trackEvent("carousel_navigate", {
+                  carousel: "home",
+                  method: "keyboard",
+                  direction: "previous",
+                });
                 setHomeSlide(
                   (homeSlide - 1 + homeCarousel.length) % homeCarousel.length,
                 );
@@ -644,12 +691,18 @@ function App() {
             onTouchEnd={(event) => {
               if (homeTouchStart === null) return;
               const distance = event.changedTouches[0].clientX - homeTouchStart;
-              if (Math.abs(distance) > 45)
+              if (Math.abs(distance) > 45) {
+                trackEvent("carousel_navigate", {
+                  carousel: "home",
+                  method: "swipe",
+                  direction: distance < 0 ? "next" : "previous",
+                });
                 setHomeSlide((current) =>
                   distance < 0
                     ? (current + 1) % homeCarousel.length
                     : (current - 1 + homeCarousel.length) % homeCarousel.length,
                 );
+              }
               setHomeTouchStart(null);
             }}
           >
@@ -962,13 +1015,19 @@ function App() {
             onTouchEnd={(event) => {
               if (touchStart === null) return;
               const distance = event.changedTouches[0].clientX - touchStart;
-              if (Math.abs(distance) > 50)
+              if (Math.abs(distance) > 50) {
+                trackEvent("carousel_navigate", {
+                  carousel: "impact",
+                  method: "swipe",
+                  direction: distance < 0 ? "next" : "previous",
+                });
                 setActiveSlide((current) =>
                   distance < 0
                     ? (current + 1) % featuredGallery.length
                     : (current - 1 + featuredGallery.length) %
                       featuredGallery.length,
                 );
+              }
               setTouchStart(null);
             }}
           >

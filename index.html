@@ -16,6 +16,31 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://drkodali.org/og.jpg" />
     <title>Dr. Kodali Veeriah Educational Academy</title>
+    <!-- Google tag (gtag.js) — GA4 -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      window.gtag = gtag;
+      gtag("js", new Date());
+      // Local development traffic never reaches the property: the stub above
+      // still exists so app code can call gtag() unconditionally, but gtag.js
+      // is only fetched on the live site.
+      if (
+        !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) &&
+        !location.hostname.endsWith(".local")
+      ) {
+        // The app sets the per-page <title> after it mounts, so page_view is
+        // sent from src/analytics.ts instead of firing here with the static
+        // title baked into this file.
+        gtag("config", "G-0WJH1YG4F6", { send_page_view: false });
+        var ga = document.createElement("script");
+        ga.async = true;
+        ga.src = "https://www.googletagmanager.com/gtag/js?id=G-0WJH1YG4F6";
+        document.head.appendChild(ga);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
