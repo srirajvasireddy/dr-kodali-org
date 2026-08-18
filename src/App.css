@@ -667,7 +667,6 @@ main { padding-top: 0; }
   .legacy-top { grid-template-columns: 1fr; }
   .legacy-portrait { width: min(90%, 430px); justify-self: center; }
   .cinematic-legacy .legacy-aside { background: rgba(255,255,255,.06); }
-  .impact-slides { min-height: 520px; }
   .impact-slide figcaption { grid-template-columns: 1fr; gap: 10px; }
   .slider-controls { padding-inline: 10px; }
   .slider-controls > button { width: 40px; height: 40px; }
@@ -1082,7 +1081,6 @@ main { padding-top: 0; }
 .program,
 .objective-list li,
 .contact-links a { border-bottom-color: var(--hairline); }
-.program { min-height: 112px; }
 .program h3 { letter-spacing: -.025em; }
 .program p,
 .objective-list p,

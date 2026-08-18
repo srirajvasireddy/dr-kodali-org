@@ -120,28 +120,28 @@ const founderMilestones = [
 const gallery = [
   {
     src: "/media/impact-4k/vizag-1.webp",
-    thumb: "/media/moments/vizag-1.webp",
+    thumb: "/media/impact-web/vizag-1.webp",
     alt: "Community service in Visakhapatnam",
     title: "Visakhapatnam service",
     caption: "Four days of service in Visakhapatnam’s underserved communities.",
   },
   {
     src: "/media/impact-4k/vizag-2.webp",
-    thumb: "/media/moments/vizag-2.webp",
+    thumb: "/media/impact-web/vizag-2.webp",
     alt: "Volunteers serving in Visakhapatnam",
     title: "Relief with dignity",
     caption: "Academy volunteers connecting directly with families.",
   },
   {
     src: "/media/impact-4k/vizag-3.webp",
-    thumb: "/media/moments/vizag-3.webp",
+    thumb: "/media/impact-web/vizag-3.webp",
     alt: "Community outreach during Visakhapatnam service",
     title: "Community outreach",
     caption: "Practical assistance delivered where it was needed.",
   },
   {
     src: "/media/impact-4k/vizag-4.webp",
-    thumb: "/media/moments/vizag-4.webp",
+    thumb: "/media/impact-web/vizag-4.webp",
     alt: "People at a Visakhapatnam service event",
     title: "Four days of action",
     caption: "Working side by side with local families.",
@@ -365,6 +365,16 @@ const momentThumb = (src: string) =>
 const impactWeb = (src: string) =>
   `/media/impact-web/${src.split("/").pop()!}`;
 
+// The thumb strip draws at roughly 84x42. It used to be fed the same 1404px
+// files the main slide needs, which cost 2.5 MB to render ten postage stamps.
+const carouselThumb = (src: string) =>
+  `/media/carousel-thumbs/${src.split("/").pop()!}`;
+
+// Middle rung between the 1404px and 3840px slide tiers. Without it a 2x
+// laptop needs ~1500px and has to jump to the 3840px master — 727 KB where
+// 168 KB will do.
+const carouselMid = (src: string) => src.replace("-4k.webp", "-2k.webp");
+
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeImage, setActiveImage] = useState<number | null>(null);
@@ -376,6 +386,27 @@ function App() {
   const [homeSlide, setHomeSlide] = useState(0);
   const [homePlaying, setHomePlaying] = useState(true);
   const [homeTouchStart, setHomeTouchStart] = useState<number | null>(null);
+  // Off-screen slides are laid out (opacity 0), not removed, so `loading=lazy`
+  // never held them back — all ten downloaded up front. Mount a slide's image
+  // only once its slide has been reached, keeping one slide of lookahead so
+  // the next is already decoded before the 4.8s auto-advance lands on it.
+  // Slides already seen stay mounted so the .75s cross-fade still has an
+  // outgoing image to fade out, even when a thumb click jumps several along.
+  const [homeSlidesReady, setHomeSlidesReady] = useState(() => new Set([0, 1]));
+  const [homeSlideSeen, setHomeSlideSeen] = useState(0);
+  if (homeSlideSeen !== homeSlide) {
+    // Adjusting state during render — React's documented alternative to an
+    // effect here; it bails out on the very next pass instead of cascading.
+    setHomeSlideSeen(homeSlide);
+    setHomeSlidesReady((ready) => {
+      const after = (homeSlide + 1) % homeCarousel.length;
+      if (ready.has(homeSlide) && ready.has(after)) return ready;
+      const grown = new Set(ready);
+      grown.add(homeSlide);
+      grown.add(after);
+      return grown;
+    });
+  }
   const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
   const pageKey: (typeof routePages)[keyof typeof routePages] | "not-found" =
     currentPath in routePages
@@ -419,7 +450,7 @@ function App() {
       return;
     const timer = window.setInterval(
       () => setHomeSlide((current) => (current + 1) % homeCarousel.length),
-      4800,
+      4800, // keep in step with the lookahead in the homeSlidesReady effect
     );
     return () => window.clearInterval(timer);
   }, [homePlaying]);
@@ -629,15 +660,21 @@ function App() {
                   aria-hidden={index !== homeSlide}
                   key={image.src}
                 >
-                  <img
-                    className="home-carousel-image"
-                    src={image.src}
-                    srcSet={`${image.thumb} 1404w, ${image.src} 3840w`}
-                    sizes="(max-width: 720px) calc(100vw - 40px), 62vw"
-                    alt={image.alt}
-                    loading={index < 2 ? "eager" : "lazy"}
-                    fetchPriority={index === 0 ? "high" : "auto"}
-                  />
+                  {homeSlidesReady.has(index) && (
+                    <img
+                      className="home-carousel-image"
+                      src={image.thumb}
+                      srcSet={`${image.thumb} 1404w, ${carouselMid(image.src)} 2000w, ${image.src} 3840w`}
+                      // Measured, not guessed: the slide renders ~53vw, capping
+                      // near 990px on very wide screens. The old 62vw overstated
+                      // it by a fifth, which pushed retina laptops onto the
+                      // 3840px master when 2000px covers them.
+                      sizes="(max-width: 720px) 100vw, (min-width: 1800px) 990px, 53vw"
+                      alt={image.alt}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      fetchPriority={index === 0 ? "high" : "auto"}
+                    />
+                  )}
                   <figcaption>
                     <span>
                       {String(index + 1).padStart(2, "0")} /{" "}
@@ -706,7 +743,7 @@ function App() {
                   aria-current={index === homeSlide ? "true" : undefined}
                   key={image.src}
                 >
-                  <img src={image.thumb} alt="" />
+                  <img src={carouselThumb(image.src)} alt="" />
                 </button>
               ))}
             </div>
