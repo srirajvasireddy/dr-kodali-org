@@ -5,6 +5,10 @@
 // goes through here: page views (delayed until the real page title is set), a
 // single delegated click listener that names every link and button on the site,
 // scroll depth, section visibility, dwell time and form progress.
+//
+// Routing is client-side, so nothing here can rely on a document teardown
+// between pages: the per-page counters are cleared by `resetPageMetrics()`,
+// which the app calls on every route change.
 
 type GtagParams = Record<string, string | number | boolean | undefined>;
 
@@ -41,8 +45,9 @@ let lastPageView = "";
 
 export function trackPageView() {
   // Guards against a second send for the same URL (StrictMode in development,
-  // a bfcache restore in the wild). Navigation is a full page load here, so
-  // module state resets between real pages.
+  // a bfcache restore in the wild). Client-side navigation keeps this module
+  // alive across pages, so the guard is keyed on the URL rather than assuming
+  // a fresh document per page.
   if (lastPageView === window.location.href) return;
   lastPageView = window.location.href;
   const params = {
@@ -127,12 +132,33 @@ function trackClick(event: MouseEvent) {
   else trackEvent("navigation_click", { ...params, link_path: url.pathname });
 }
 
+// Filled in by the watchers below so `resetPageMetrics()` can clear their
+// once-per-page state when the router swaps pages under them.
+let resetScrollDepth = () => {};
+let resetFormStart = () => {};
+
+/**
+ * Clears the counters that are meant to fire once per page. Called on every
+ * route change; without it a visitor's second and later pages would report no
+ * scroll depth and no form start, because those flags were latched on the
+ * first page of the visit.
+ */
+export function resetPageMetrics() {
+  resetScrollDepth();
+  resetFormStart();
+}
+
 /** 25/50/75/90% scroll milestones, each sent at most once per page. */
 function watchScrollDepth() {
   const milestones = [25, 50, 75, 90];
   let sent = 0;
   let deepest = 0;
   let frame = 0;
+
+  resetScrollDepth = () => {
+    sent = 0;
+    deepest = 0;
+  };
 
   const measure = () => {
     const scrollable =
@@ -220,6 +246,9 @@ function watchEngagement(deepestScroll: () => number) {
 /** One `form_start` the first time someone types into a form on the page. */
 function watchForms() {
   let started = false;
+  resetFormStart = () => {
+    started = false;
+  };
   document.addEventListener(
     "input",
     (event) => {
